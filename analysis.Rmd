@@ -1,0 +1,128 @@
+---
+title: "Storm Data Economic and Public Health Analysis"
+author: "Hossein FaridNasr"
+date: "2/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache=TRUE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE)
+```
+
+## Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.  
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.  
+In this report, I have analyzed the effects of natural disasters by economic and health-related factors in the United States. The effects of these disasters are shown in tables and plots and sorted by the amount of damage or casualties they have had.   
+For health-related analysis, I have used the injury and fatality data and for the economic analysis I have used the property and crop damage.  
+
+## Data Processing 
+### Analysis Setup
+First of all we should install and load the necessary libraries:
+```{r install_packages, eval=FALSE}
+isntall.packages(ggplot2)
+isntall.packages(data.table)
+isntall.packages(dplyr)
+isntall.packages(knitr)
+isntall.packages(reshape2)
+
+```
+```{r loading_packages, results='hide', message=FALSE}
+library(ggplot2)
+library(data.table)
+library(dplyr)
+library(knitr)
+library(reshape2)
+```
+### Importing Data
+Now we should download the data form the given [link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2)
+```{r Importing_Data, cache=TRUE}
+if(!file.exists("storm_data")){
+	download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "storm_data")
+}
+storm_data <- as.data.table(read.csv(bzfile("storm_data")), keep.rownames=TRUE)
+```
+If you want to learn more about the dataset you can read more [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) and [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf).  
+
+### Question 1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+#### Aggregating the data
+
+Here we aggregate the data to see how much each event(EVTYPE) has caused injuries(INJURIES) and select the top 20 events that caused the most injuries.
+
+```{r aggregate_EVTYPE_INJURIES}
+total_injuries <- aggregate(INJURIES~EVTYPE, storm_data, sum)
+total_injuries <- arrange(total_injuries, desc(INJURIES))
+kable(total_injuries[1:10,],caption = "Total number of injuries by event type", align = 'cc')
+```
+
+and now we do the same for fatalities to see how much each event(EVTYPE) has caused fatalities(FATALITIES).
+
+```{r aggregate_EVTYPE_FATALITIES}
+total_fatalities <- aggregate(FATALITIES~EVTYPE, storm_data, sum)
+total_fatalities <- arrange(total_fatalities, desc(FATALITIES))
+kable(total_fatalities[1:10,],
+      caption = "Total number of fatalities by event type", align = 'cc')
+```
+
+#### Plotting the data
+
+```{r plotting_1, fig.align='center'}
+health <- merge(total_fatalities, total_injuries, by.x = "EVTYPE", by.y = "EVTYPE")
+health <- arrange(health, desc(FATALITIES+INJURIES))[1:10,]
+health <- melt(health, id.vars="EVTYPE", variable.name = "outcome")
+
+graph <- ggplot(health, aes(x=reorder(EVTYPE,-value),y=value))+
+	geom_bar(stat = 'identity',aes(fill=outcome))+
+	facet_grid(~outcome)+
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+	xlab('Event type')+
+	ylab('Number of Fatalities and Injuries')+
+	ggtitle('Top 10 Natural disasters in US by health-related factors')+
+	theme(plot.title = element_text(hjust = 0.5))+
+	theme(legend.position = "none")
+graph
+```
+### Question 2. Across the United States, which types of events have the greatest economic consequences?
+#### Aggregating the data
+
+Here we aggregate the data to see how much each event(EVTYPE) has caused property damage(PROPDMG) and select the top 20 events that caused the most amount of damage.
+
+```{r aggregate_EVTYPE_property_dmg}
+total_prop_dmg <- aggregate(PROPDMG~EVTYPE, storm_data, sum)
+total_prop_dmg <- arrange(total_prop_dmg, desc(PROPDMG))
+kable(total_prop_dmg[1:10,],caption = "Total amount of property damage by event type", align = 'cc')
+```
+
+and now we do the same for fatalities to see how much each event(EVTYPE) has caused crop damage(CROPDMG).
+
+```{r aggregate_EVTYPE_crop_dmg}
+total_crop_dmg <- aggregate(CROPDMG~EVTYPE, storm_data, sum)
+total_crop_dmg <- arrange(total_crop_dmg, desc(CROPDMG))
+kable(total_crop_dmg[1:10,],
+      caption = "Total amount of crop damage by event type", align = 'cc')
+```
+
+#### Plotting the data
+
+```{r plotting_2, fig.align='center'}
+econ <- merge(total_crop_dmg, total_prop_dmg, by.x = "EVTYPE", by.y = "EVTYPE")
+econ <- arrange(econ, desc(PROPDMG+CROPDMG))[1:10,]
+econ <- melt(econ, id.vars="EVTYPE", variable.name = "outcome")
+
+graph <- ggplot(econ, aes(x=reorder(EVTYPE,-value),y=value))+
+	geom_bar(stat = 'identity',aes(fill=outcome))+
+	facet_grid(.~outcome)+
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+	xlab('Event type')+
+	ylab('Amount of damage')+
+	ggtitle('Top 10 Natural disasters in US by Economic factors')+
+	theme(plot.title = element_text(hjust = 0.5))+
+	theme(legend.position = "none")
+graph
+
+```  
+
+## Results
+
+Using the data and plots generated in this analysis we can conclude that tornados are the most destructive and deadly disaster in the United States as they have caused the most number of injuries and fatalities, as well as the most amount of property damage. The most destructive disaster as it has caused the most amount of crop damage.
